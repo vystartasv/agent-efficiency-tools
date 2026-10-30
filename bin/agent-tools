@@ -1,0 +1,51 @@
+#!/bin/sh
+set -eu
+root=$(python3 -c 'import os, sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "$0")
+if [ "$#" -eq 0 ] || [ "$1" = help ] || [ "$1" = --help ]; then
+  printf '%s\n' 'Usage: agent-tools COMMAND [ARGS...]' '' 'Commands:' '  doctor         Inspect local dependencies' '  image-prepare  Resize or compress an image' '  image-batch    Prepare several images and report byte savings' '  image-crop     Extract a pixel region to PNG' '  image-diff     Compare pixels in two PNG images' '  image-text     Extract text with macOS Vision' '  media-info     Inspect audio and video metadata' '  video-frame    Extract one video frame to PNG' '  audio-transcribe Transcribe audio with a local Whisper model' '  pdf-text       Extract text from selected PDF pages' '  pdf-find       Find text in PDF pages' '  pdf-ocr        Recognize text on selected PDF pages' '  output-capture Save full command output and show a bounded tail' '  log-scan       Extract matching log lines with bounded context' '  test-report    Extract JUnit XML failure details' '  browser-read   Read rendered page text in an isolated browser'
+  exit 0
+fi
+command=$1
+shift
+if [ "$#" -eq 1 ] && [ "$1" = --help ]; then
+  case "$command" in
+    doctor) usage='doctor — report local dependencies as JSON' ;;
+    image-prepare) usage='image-prepare INPUT OUTPUT [MAX_DIMENSION] [JPEG_QUALITY] — create a resized or compressed copy' ;;
+    image-batch) usage='image-batch OUTPUT_DIR [--max-dimension N] [--format png|jpeg] [--quality N] IMAGE... — prepare multiple copies and report byte savings' ;;
+    image-crop) usage='image-crop INPUT OUTPUT.png X Y WIDTH HEIGHT — crop using top-left pixel coordinates' ;;
+    image-diff) usage='image-diff LEFT.png RIGHT.png [THRESHOLD] — compare PNG pixels; requires pngjs and pixelmatch' ;;
+    image-text) usage='image-text [--batch] IMAGE... [--json] [--regions] [--max-chars N] — recognize image text with macOS Vision' ;;
+    media-info) usage='media-info INPUT — inspect local media metadata using FFprobe' ;;
+    video-frame) usage='video-frame INPUT OUTPUT.png SECONDS — extract a video frame using FFmpeg' ;;
+    audio-transcribe) usage='audio-transcribe INPUT MODEL.pt [--language CODE] [--start S --end S] — transcribe using local Whisper' ;;
+    pdf-text) usage='pdf-text INPUT.pdf [FIRST_PAGE [LAST_PAGE]] [--ocr-missing] — extract PDF text and optionally OCR image-only pages' ;;
+    pdf-find) usage='pdf-find INPUT.pdf SEARCH_TEXT — find selectable PDF text by page' ;;
+    pdf-ocr) usage='pdf-ocr INPUT.pdf [FIRST_PAGE [LAST_PAGE]] — recognize PDF pages with macOS Vision' ;;
+    output-capture) usage='output-capture --output FILE [--tail-bytes N] [--timeout SECONDS] -- COMMAND ... — save complete output and show a tail' ;;
+    log-scan) usage='log-scan INPUT [--pattern REGEX] [--context N] [--max-matches N] [--max-line-chars N] — extract bounded diagnostic lines' ;;
+    test-report) usage='test-report REPORT.xml — extract JUnit failure details' ;;
+    browser-read) usage='browser-read URL [MAX_CHARACTERS] [--main] [--wait-for SELECTOR] [--timeout-ms MS] — read rendered text in isolated Chromium' ;;
+    *) printf 'Unknown command: %s\n' "$command" >&2; exit 2 ;;
+  esac
+  printf 'Usage: agent-tools %s\nSee the checkout README for exit codes and limitations.\n' "$usage"
+  exit 0
+fi
+case "$command" in
+  doctor) exec "$root/agent-doctor" "$@" ;;
+  image-prepare) exec "$root/image-prepare" "$@" ;;
+  image-batch) exec python3 "$root/image-batch" "$@" ;;
+  image-crop) exec "$root/image-crop.swift" "$@" ;;
+  image-diff) exec "$root/image-diff" "$@" ;;
+  image-text) exec "$root/image-text.swift" "$@" ;;
+  media-info) exec "$root/media-info" "$@" ;;
+  video-frame) exec "$root/video-frame" "$@" ;;
+  audio-transcribe) exec "$root/audio-transcribe" "$@" ;;
+  pdf-text) exec "$root/pdf-text.swift" "$@" ;;
+  pdf-find) exec "$root/pdf-find.swift" "$@" ;;
+  pdf-ocr) exec "$root/pdf-ocr.swift" "$@" ;;
+  output-capture) exec "$root/output-capture" "$@" ;;
+  log-scan) exec python3 "$root/log-scan" "$@" ;;
+  test-report) exec "$root/test-report" "$@" ;;
+  browser-read) exec "$root/browser-read" "$@" ;;
+  *) printf 'Unknown command: %s\n' "$command" >&2; exit 2 ;;
+esac

@@ -1,0 +1,49 @@
+{
+  "name": "agent-efficiency-tools",
+  "version": "0.1.7",
+  "description": "Local tools for agents",
+  "license": "MIT",
+  "author": "Vilius Vystartas",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vystartasv/agent-efficiency-tools.git"
+  },
+  "homepage": "https://github.com/vystartasv/agent-efficiency-tools#readme",
+  "bugs": "https://github.com/vystartasv/agent-efficiency-tools/issues",
+  "bin": {
+    "agent-tools": "bin/agent-tools"
+  },
+  "files": [
+    "assets/icon.svg",
+    "skills/agent-tools/SKILL.md",
+    "bin/agent-doctor",
+    "bin/agent-tools",
+    "bin/audio-transcribe",
+    "bin/browser-read",
+    "bin/image-batch",
+    "bin/image-crop.swift",
+    "bin/image-diff",
+    "bin/log-scan",
+    "bin/image-prepare",
+    "bin/image-text.swift",
+    "bin/media-info",
+    "bin/output-capture",
+    "bin/pdf-find.swift",
+    "bin/pdf-ocr.swift",
+    "bin/pdf-text.swift",
+    "bin/test-report",
+    "bin/video-frame"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "dependencies": {
+    "pixelmatch": "^8.0.0",
+    "playwright": "^1.64.1",
+    "pngjs": "^7.0.0"
+  }
+}

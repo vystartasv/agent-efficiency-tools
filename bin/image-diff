@@ -1,0 +1,35 @@
+#!/usr/bin/env node
+const fs = require('node:fs');
+const { pathToFileURL } = require('node:url');
+
+async function main() {
+  const [left, right, thresholdArg = '0.1'] = process.argv.slice(2);
+  if (!left || !right || process.argv.length > 5) throw new Error('usage: image-diff LEFT.png RIGHT.png [THRESHOLD]');
+  const threshold = Number(thresholdArg);
+  if (thresholdArg.trim() === '' || !Number.isFinite(threshold) || threshold < 0 || threshold > 1) throw new Error('threshold must be from 0 to 1');
+  const req = require;
+  let PNG, pixelmatch;
+  try {
+    ({ PNG } = req('pngjs'));
+    pixelmatch = (await import(pathToFileURL(req.resolve('pixelmatch')).href)).default;
+  } catch { throw new Error('image-diff dependencies are missing; reinstall agent-efficiency-tools'); }
+  function read(path) {
+    const stat = fs.statSync(path);
+    if (!stat.isFile() || stat.size > 64 * 1024 * 1024) throw new Error('input must be a file no larger than 64 MiB');
+    const data = fs.readFileSync(path);
+    if (data.length < 24 || !data.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')) || data.toString('ascii', 12, 16) !== 'IHDR') throw new Error('input must be a PNG');
+    const width = data.readUInt32BE(16), height = data.readUInt32BE(20);
+    if (!width || !height || width * height > 16000000) throw new Error('image must contain at most 16 million pixels');
+    return PNG.sync.read(data);
+  }
+  const a = read(left), b = read(right);
+  if (a.width !== b.width || a.height !== b.height) {
+    console.log(JSON.stringify({ left, right, dimensions_match: false, left_size: [a.width, a.height], right_size: [b.width, b.height] }));
+    process.exitCode = 1;
+    return;
+  }
+  const changed = pixelmatch(a.data, b.data, null, a.width, a.height, { threshold });
+  console.log(JSON.stringify({ left, right, dimensions_match: true, width: a.width, height: a.height,
+    threshold, changed_pixels: changed, total_pixels: a.width * a.height, changed_fraction: changed / (a.width * a.height) }));
+}
+main().catch(error => { console.error(`image-diff: ${error.message}`); process.exitCode = 2; });

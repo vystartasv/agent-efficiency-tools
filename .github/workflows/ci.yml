@@ -1,0 +1,78 @@
+name: Tests
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*.*.*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install package dependencies
+        run: npm ci
+      - name: Check package contents
+        run: npm pack --dry-run
+      - name: Install Chromium
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            ./node_modules/.bin/playwright install --with-deps chromium
+          else
+            ./node_modules/.bin/playwright install chromium
+          fi
+      - name: Ensure FFmpeg is available
+        run: |
+          if ! command -v ffmpeg >/dev/null || ! command -v ffprobe >/dev/null; then
+            if [ "$RUNNER_OS" = Linux ]; then
+              sudo apt-get update
+              sudo apt-get install -y ffmpeg
+            else
+              brew install ffmpeg
+            fi
+          fi
+      - name: Verify optional test dependencies
+        run: |
+          python3 -c 'import json, subprocess; r=json.loads(subprocess.check_output(["bin/agent-doctor"])); assert r["chromium_executable_present"] is True, "Chromium missing"; assert r["image_diff_dependencies_available"] is True, "image comparison dependencies missing"; assert r["commands"]["ffmpeg"] and r["commands"]["ffprobe"], "FFmpeg missing"'
+      - name: Run tests
+        run: python3 -m unittest discover -s tests -v
+
+  publish:
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs: test
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: Check tag matches package version
+        run: node -e 'const p=require("./package.json"); if (process.env.GITHUB_REF_NAME !== `v${p.version}`) throw new Error(`tag ${process.env.GITHUB_REF_NAME} does not match package version ${p.version}`)'
+      - name: Publish to npm with OIDC
+        run: npm publish --access public

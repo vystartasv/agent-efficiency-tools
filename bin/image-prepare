@@ -1,0 +1,41 @@
+#!/bin/sh
+# Prepare a smaller copy for visual inspection; never overwrite the source.
+set -eu
+if [ "$#" -lt 2 ] || [ "$#" -gt 4 ]; then
+  echo "Usage: image-prepare INPUT OUTPUT [MAX_DIMENSION] [JPEG_QUALITY]" >&2
+  exit 2
+fi
+input=$1
+output=$2
+size=${3:-1600}
+case "$size" in ''|*[!0-9]*) echo 'MAX_DIMENSION must be an integer from 1 to 100000' >&2; exit 2;; esac
+if ! [ "$size" -ge 1 ] 2>/dev/null || ! [ "$size" -le 100000 ] 2>/dev/null; then
+  echo 'MAX_DIMENSION must be an integer from 1 to 100000' >&2; exit 2
+fi
+[ -f "$input" ] || { echo "Input not found: $input" >&2; exit 1; }
+[ ! -e "$output" ] && [ ! -L "$output" ] || { echo "Output already exists: $output" >&2; exit 1; }
+case "$output" in *.jpg|*.jpeg|*.JPG|*.JPEG) format=jpeg;; *.png|*.PNG) format=png;; *) echo 'Output must end in .jpg, .jpeg, or .png' >&2; exit 2;; esac
+if [ "$#" -eq 4 ]; then
+  quality=$4
+  case "$quality" in ''|*[!0-9]*) echo 'JPEG_QUALITY must be an integer from 1 to 100' >&2; exit 2;; esac
+  [ "$format" = jpeg ] && [ "$quality" -ge 1 ] && [ "$quality" -le 100 ] || { echo 'JPEG_QUALITY requires JPEG output and must be from 1 to 100' >&2; exit 2; }
+fi
+tempdir=$(mktemp -d "$(dirname "$output")/.image-prepare.XXXXXXXX")
+trap 'rm -f "$tempdir/image"; rmdir "$tempdir"' EXIT
+trap 'exit 1' HUP INT TERM
+if [ "$#" -eq 4 ]; then
+  sips -s format "$format" -s formatOptions "$quality" -Z "$size" "$input" --out "$tempdir/image" >/dev/null
+else
+  # ponytail: preserve an already-small PNG instead of re-encoding and possibly growing it.
+  info=$(sips -g format -g pixelWidth -g pixelHeight "$input")
+  input_format=$(printf '%s\n' "$info" | awk '$1 == "format:" {print $2; exit}')
+  width=$(printf '%s\n' "$info" | awk '$1 == "pixelWidth:" {print $2; exit}')
+  height=$(printf '%s\n' "$info" | awk '$1 == "pixelHeight:" {print $2; exit}')
+  if [ "$format" = png ] && [ "$input_format" = png ] && [ -n "$width" ] && [ -n "$height" ] && [ "$width" -le "$size" ] && [ "$height" -le "$size" ]; then
+    cp "$input" "$tempdir/image"
+  else
+    sips -s format "$format" -Z "$size" "$input" --out "$tempdir/image" >/dev/null
+  fi
+fi
+ln "$tempdir/image" "$output" || { echo "Could not create output: $output" >&2; exit 1; }
+sips -g pixelWidth -g pixelHeight "$output"

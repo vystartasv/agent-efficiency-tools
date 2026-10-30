@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+"""Transcribe a local audio file with an explicitly supplied Whisper model."""
+import argparse
+from decimal import Decimal, InvalidOperation
+import json
+from pathlib import Path
+import subprocess
+import sys
+import tempfile
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('input', help='local audio or video file')
+parser.add_argument('model', help='path to an installed OpenAI Whisper .pt model')
+parser.add_argument('--language', help='optional Whisper language code')
+parser.add_argument('--start', help='start time in seconds, paired with --end')
+parser.add_argument('--end', help='end time in seconds, paired with --start')
+args = parser.parse_args()
+source, model = Path(args.input), Path(args.model)
+if not source.is_file() or not model.is_file():
+    parser.error('input and model must be existing local files')
+if args.language is not None and (not args.language.isascii() or not args.language.isalpha() or len(args.language) > 3):
+    parser.error('language must be a short language code such as en')
+time_range = None
+if args.start is not None or args.end is not None:
+    try:
+        if args.start is None or args.end is None:
+            raise InvalidOperation
+        start, end = Decimal(args.start), Decimal(args.end)
+        if not start.is_finite() or not end.is_finite() or start < 0 or end <= start or end > 1000000000:
+            raise InvalidOperation
+        if any(not -9 <= n.as_tuple().exponent <= 9 for n in (start, end)):
+            raise InvalidOperation
+        time_range = [format(start, 'f'), format(end, 'f')]
+    except InvalidOperation:
+        parser.error('--start and --end must be finite seconds with 0 <= start < end <= 1000000000 and at most 9 decimal places')
+try:
+    with tempfile.TemporaryDirectory(prefix='agent-audio-') as directory, tempfile.TemporaryFile(mode='w+b') as errors:
+        command = ['whisper', str(source.resolve()), '--model', str(model.resolve()), '--output_dir', directory,
+                   '--output_format', 'json', '--verbose', 'False', '--fp16', 'False']
+        if args.language:
+            command += ['--language', args.language]
+        if time_range:
+            command += ['--clip_timestamps', ','.join(time_range)]
+        result = subprocess.run(command, stdout=subprocess.DEVNULL, stderr=errors)
+        if result.returncode != 0:
+            errors.seek(0, 2)
+            errors.seek(max(0, errors.tell() - 4000))
+            print('audio-transcribe: Whisper failed: ' + errors.read().decode(errors='replace'), file=sys.stderr)
+            sys.exit(1)
+        report = Path(directory) / (source.stem + '.json')
+        data = json.loads(report.read_text())
+        segments = [{'start': s['start'], 'end': s['end'], 'text': s['text']} for s in data['segments']]
+        empty = not any(s['text'].strip() for s in segments)
+        # The saved result is temporary; signal omission so callers can transcribe a smaller clip.
+        truncated = len(segments) > 200 or sum(len(s['text']) for s in segments) > 12000
+        kept, count = [], 0
+        for segment in segments[:200]:
+            if count + len(segment['text']) > 12000:
+                break
+            kept.append(segment)
+            count += len(segment['text'])
+        print(json.dumps({'source': args.input, 'language': data.get('language'), 'segments': kept,
+                          'segment_count': len(segments), 'truncated': truncated,
+                          'no_recognized_speech': empty, 'requested_range_seconds': time_range}, ensure_ascii=False))
+        sys.exit(1 if truncated or empty else 0)
+except (OSError, ValueError, KeyError, TypeError) as exc:
+    print(f'audio-transcribe: {exc}', file=sys.stderr)
+    sys.exit(2)

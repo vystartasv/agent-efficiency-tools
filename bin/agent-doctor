@@ -1,0 +1,36 @@
+#!/usr/bin/env python3
+"""Report local dependencies for the agent tools without changing configuration."""
+import json
+import platform
+from pathlib import Path
+import shutil
+import subprocess
+
+names = ('sips', 'swift', 'node', 'python3', 'rg', 'jq', 'ffmpeg', 'ffprobe', 'whisper', 'rtk')
+commands = {name: shutil.which(name) for name in names}
+playwright = None
+chromium = None
+image_diff_dependencies = None
+if commands['node']:
+    try:
+        script = """const fs = require('fs');
+const {createRequire} = require('module');
+const toolRequire = createRequire(process.argv[1]);
+const result = {playwright: false, chromium: null, imageDiffDependencies: false};
+try {
+  const {chromium} = toolRequire('playwright');
+  result.playwright = true;
+  try { fs.accessSync(chromium.executablePath(), fs.constants.X_OK); result.chromium = true; }
+  catch { result.chromium = false; }
+} catch {}
+try { toolRequire.resolve('pngjs'); toolRequire.resolve('pixelmatch'); result.imageDiffDependencies = true; } catch {}
+console.log(JSON.stringify(result));
+"""
+        result = subprocess.run([commands['node'], '-e', script, str(Path(__file__).resolve())], capture_output=True, text=True, timeout=5, check=True)
+        probe = json.loads(result.stdout)
+        playwright, chromium = probe['playwright'], probe['chromium']
+        image_diff_dependencies = probe['imageDiffDependencies']
+    except (OSError, subprocess.TimeoutExpired, subprocess.CalledProcessError, ValueError, KeyError):
+        pass
+print(json.dumps({'platform': platform.system(), 'commands': commands, 'playwright_available': playwright,
+                  'chromium_executable_present': chromium, 'image_diff_dependencies_available': image_diff_dependencies}, indent=2))

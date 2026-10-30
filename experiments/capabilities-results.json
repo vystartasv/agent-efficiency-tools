@@ -1,0 +1,48 @@
+{
+  "json_select": {
+    "raw_bytes": 68898,
+    "output_bytes": 51,
+    "seconds": 0.0054,
+    "facts": {
+      "exit": 0,
+      "failure_found": true
+    }
+  },
+  "log_context": {
+    "raw_bytes": 18003,
+    "output_bytes": 69,
+    "seconds": 0.0044,
+    "facts": {
+      "exit": 0,
+      "error_and_neighbors_found": true
+    }
+  },
+  "log_no_match": {
+    "exit": 1,
+    "output_bytes": 0,
+    "seconds": 0.0036
+  },
+  "audio_metadata": {
+    "exit": 0,
+    "output_bytes": 259,
+    "seconds": 0.0298,
+    "duration_seconds": 2.0,
+    "codec": "pcm_s16le"
+  },
+  "test_failure": {
+    "raw": {
+      "exit": 1,
+      "bytes": 3640,
+      "seconds": 0.0684,
+      "failure_named": true,
+      "actual_expected_present": true
+    },
+    "rtk": {
+      "exit": 1,
+      "bytes": 174,
+      "seconds": 0.0758,
+      "failure_named": false,
+      "actual_expected_present": false
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "fixture": {
+    "exit": 0,
+    "seconds": 1.048,
+    "stdout_bytes": 0,
+    "stderr_bytes": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "images": {
+    "2400": {
+      "prepare": {
+        "exit": 0,
+        "seconds": 0.048,
+        "stdout_bytes": 138,
+        "stderr_bytes": 0,
+        "stdout": "/private/var/folders/d5/n7z968f536v86qtmhntlvdwr0000gn/T/agent-tools-bench-_fy3ovih/image-2400.png\n  pixelWidth: 2400\n  pixelHeight: 1200\n",
+        "stderr": ""
+      },
+      "file_bytes": 87164,
+      "ocr": {
+        "exit": 0,
+        "seconds": 0.563,
+        "stdout_bytes": 100,
+        "stderr_bytes": 0,
+        "stdout": "ORDER 7264 READY SIZE 72\nORDER 7264 READY SIZE 36\nORDER 7264 READY SIZE 18\nORDER 7264 READY SIZE 10\n",
+        "stderr": ""
+      }
+    },
+    "1600": {
+      "prepare": {
+        "exit": 0,
+        "seconds": 0.07,
+        "stdout_bytes": 137,
+        "stderr_bytes": 0,
+        "stdout": "/private/var/folders/d5/n7z968f536v86qtmhntlvdwr0000gn/T/agent-tools-bench-_fy3ovih/image-1600.png\n  pixelWidth: 1600\n  pixelHeight: 800\n",
+        "stderr": ""
+      },
+      "file_bytes": 54229,
+      "ocr": {
+        "exit": 0,
+        "seconds": 0.391,
+        "stdout_bytes": 100,
+        "stderr_bytes": 0,
+        "stdout": "ORDER 7264 READY SIZE 72\nORDER 7264 READY SIZE 36\nORDER 7264 READY SIZE 18\nORDER 7264 READY SIZE 10\n",
+        "stderr": ""
+      }
+    },
+    "800": {
+      "prepare": {
+        "exit": 0,
+        "seconds": 0.062,
+        "stdout_bytes": 135,
+        "stderr_bytes": 0,
+        "stdout": "/private/var/folders/d5/n7z968f536v86qtmhntlvdwr0000gn/T/agent-tools-bench-_fy3ovih/image-800.png\n  pixelWidth: 800\n  pixelHeight: 400\n",
+        "stderr": ""
+      },
+      "file_bytes": 20358,
+      "ocr": {
+        "exit": 0,
+        "seconds": 0.373,
+        "stdout_bytes": 75,
+        "stderr_bytes": 0,
+        "stdout": "ORDER 7264 READY SIZE 72\nORDER 7264 READY SIZE 36\nORDER 7264 READY SIZE 18\n",
+        "stderr": ""
+      }
+    },
+    "overwrite": {
+      "exit": 1,
+      "seconds": 0.004,
+      "stdout_bytes": 0,
+      "stderr_bytes": 111
+    },
+    "missing_ocr": {
+      "exit": 2,
+      "seconds": 0.275,
+      "stdout_bytes": 0,
+      "stderr_bytes": 137
+    }
+  }
+}

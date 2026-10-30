@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+"""Run a command, save combined output privately, and show a bounded tail."""
+import argparse
+import errno
+import math
+import os
+import signal
+import subprocess
+import sys
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--output', required=True, help='new file for complete output (created mode 0600)')
+parser.add_argument('--tail-bytes', type=int, default=4096)
+parser.add_argument('--timeout', type=float, help='maximum runtime in seconds (0 < timeout <= 86400)')
+parser.add_argument('command', nargs=argparse.REMAINDER, help='command after --')
+args = parser.parse_args()
+command = args.command[1:] if args.command[:1] == ['--'] else args.command
+if not command or not 1 <= args.tail_bytes <= 1000000:
+    parser.error('provide a command and --tail-bytes between 1 and 1000000')
+if args.timeout is not None and (not math.isfinite(args.timeout) or not 0 < args.timeout <= 86400):
+    parser.error('--timeout must be greater than 0 and at most 86400 seconds')
+try:
+    fd = os.open(args.output, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    with os.fdopen(fd, 'wb') as output:
+        try:
+            process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT,
+                                       start_new_session=args.timeout is not None)
+        except OSError as exc:
+            output.write(f'output-capture: could not start command: {exc}\n'.encode(errors='replace'))
+            exit_code = 127 if exc.errno == errno.ENOENT else 126
+        else:
+            try:
+                return_code = process.wait(timeout=args.timeout)
+                exit_code = 128 + -return_code if return_code < 0 else return_code
+            except subprocess.TimeoutExpired:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait()
+                output.write(f'\noutput-capture: timed out after {args.timeout:g} seconds\n'.encode())
+                exit_code = 124
+            except KeyboardInterrupt:
+                if args.timeout is not None and process.poll() is None:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    process.wait()
+                raise
+    size = os.path.getsize(args.output)
+    with open(args.output, 'rb') as output:
+        output.seek(max(0, size - args.tail_bytes))
+        tail = output.read()
+    print(f'Full output: {args.output} ({size} bytes); exit: {exit_code}; tail: {len(tail)} bytes', flush=True)
+    if size > len(tail): print('[Earlier output omitted; read the full file for complete diagnostics.]', flush=True)
+    sys.stdout.buffer.write(tail)
+    sys.stdout.buffer.flush()
+    sys.exit(exit_code)
+except OSError as exc:
+    print(f'output-capture: {exc}', file=sys.stderr)
+    sys.exit(1)

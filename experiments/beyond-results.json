@@ -1,0 +1,25 @@
+{
+  "document": {
+    "exit": 0,
+    "seconds": 0.2803,
+    "input_bytes": 205,
+    "output_bytes": 53,
+    "heading_found": true,
+    "table_values_found": true,
+    "hidden_text_included": false,
+    "output": "Quarterly report\nRevenue 1200\nRegion\nProfit\nWest\n450\n"
+  },
+  "csv": {
+    "input_bytes": 66,
+    "physical_lines": 4,
+    "records": 2,
+    "multiline_field_preserved": true,
+    "quoted_comma_preserved": true
+  },
+  "json_unknown_schema": {
+    "exit": 0,
+    "known_failures": 3,
+    "selected_records": 1,
+    "output": "{\"id\":1,\"status\":\"failed\"}"
+  }
+}

@@ -1,0 +1,59 @@
+#!/usr/bin/env python3
+"""Extract failures from a JUnit XML report, retaining the original path."""
+import argparse
+import json
+import sys
+import xml.etree.ElementTree as ET
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('report', help='JUnit XML report')
+args = parser.parse_args()
+try:
+    root = ET.parse(args.report).getroot()
+except (OSError, ET.ParseError) as exc:
+    print(f'test-report: {exc}', file=sys.stderr)
+    sys.exit(2)
+
+def tag(element):
+    return element.tag.rsplit('}', 1)[-1]
+
+if tag(root) not in ('testsuite', 'testsuites'):
+    print('test-report: expected a testsuite or testsuites root', file=sys.stderr)
+    sys.exit(2)
+
+cases = [e for e in root.iter() if tag(e) == 'testcase']
+failures = []
+for case in cases:
+    for child in case:
+        if tag(child) in ('failure', 'error'):
+            failures.append({'kind': tag(child), 'test': case.get('name'), 'class': case.get('classname'),
+                             'message': child.get('message'), 'type': child.get('type'),
+                             'detail': ''.join(child.itertext())})
+# Some runners report a suite setup error without a testcase.
+for suite in (e for e in root.iter() if tag(e) in ('testsuite', 'testsuites')):
+    for child in suite:
+        if tag(child) in ('failure', 'error'):
+            failures.append({'kind': tag(child), 'suite': suite.get('name'), 'message': child.get('message'),
+                             'type': child.get('type'), 'detail': ''.join(child.itertext())})
+
+warnings = []
+for suite in (e for e in root.iter() if tag(e) in ('testsuite', 'testsuites')):
+    for attr, kind in (('tests', 'testcase'), ('failures', 'failure'), ('errors', 'error')):
+        if suite.get(attr) is None:
+            continue
+        try:
+            declared = int(suite.get(attr))
+            if declared < 0:
+                raise ValueError()
+        except ValueError:
+            warnings.append(f'invalid {attr} count on {tag(suite)} {suite.get("name", "")}')
+            continue
+        found = sum(1 for element in suite.iter() if tag(element) == kind)
+        if declared > found:
+            warnings.append(f'{tag(suite)} {suite.get("name", "")} declares {declared} {attr}, but only {found} details were found')
+if not cases and not failures:
+    warnings.append('report contains no testcases or failure details; no test result can be established')
+
+print(json.dumps({'report': args.report, 'testcases': len(cases), 'skipped': sum(any(tag(c) == 'skipped' for c in e) for e in cases),
+                  'failures': failures, 'warnings': warnings}, ensure_ascii=True))
+sys.exit(2 if warnings else 1 if failures else 0)

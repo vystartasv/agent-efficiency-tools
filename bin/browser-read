@@ -1,0 +1,52 @@
+#!/usr/bin/env node
+const { parseArgs } = require('node:util');
+async function main() {
+  const { values, positionals } = parseArgs({ allowPositionals: true, options: {
+    'wait-for': { type: 'string' }, 'timeout-ms': { type: 'string', default: '5000' }, main: { type: 'boolean', default: false },
+  } });
+  const [url, limitArg = '12000'] = positionals;
+  if (!url || positionals.length > 2 || !/^[1-9]\d*$/.test(limitArg)) throw new Error('Usage: browser-read URL [MAX_CHARACTERS] [--wait-for SELECTOR] [--timeout-ms MS]');
+  if (!['http:', 'https:', 'data:'].includes(new URL(url).protocol)) throw new Error('URL must use http, https, or data');
+  const limit = Number(limitArg);
+  if (!Number.isSafeInteger(limit) || limit > 100000) throw new Error('MAX_CHARACTERS must be between 1 and 100000');
+  const timeout = Number(values['timeout-ms']);
+  if (!/^[1-9]\d*$/.test(values['timeout-ms']) || !Number.isSafeInteger(timeout) || timeout > 30000) throw new Error('timeout-ms must be between 1 and 30000');
+  if (values['wait-for'] !== undefined && !values['wait-for'].trim()) throw new Error('wait-for requires a nonempty selector');
+  let chromium;
+  try { ({ chromium } = require('playwright')); }
+  catch { throw new Error('Playwright missing; reinstall agent-efficiency-tools and install Chromium'); }
+  const browser = await chromium.launch({ headless: true, timeout: 10000 });
+  try {
+    const page = await browser.newPage();
+    page.setDefaultTimeout(5000);
+    let response = null, navigationError = null, waitError = null;
+    try { response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 }); }
+    catch (error) { navigationError = error.message; }
+    if (values['wait-for'] && (!response || response.status() < 400)) {
+      try { await page.locator(values['wait-for']).first().waitFor({ state: 'visible', timeout }); }
+      catch (error) { waitError = error.message; }
+    }
+    const result = await page.evaluate(({ max, preferMain }) => {
+      const main = document.querySelector('main');
+      const article = document.querySelector('article');
+      const element = preferMain ? (main || article || document.body) : document.body;
+      const scope = element === main ? 'main' : element === article ? 'article' : 'body';
+      const text = element?.innerText ?? '';
+      const kept = [];
+      let characters = 0;
+      for (const character of text) {
+        if (characters < max) kept.push(character);
+        characters++;
+      }
+      return { title: document.title, url: location.href, text: kept.join(''), characters, truncated: characters > max,
+        content_scope: scope, scope_fallback: preferMain && scope === 'body' };
+    }, { max: limit, preferMain: values.main });
+    result.status = response?.status() ?? null;
+    result.navigation_error = navigationError;
+    result.wait_error = waitError;
+    result.partial = Boolean(navigationError || waitError);
+    console.log(JSON.stringify(result));
+    if (result.truncated || result.partial || (result.status !== null && result.status >= 400)) process.exitCode = 1;
+  } finally { await browser.close(); }
+}
+main().catch(error => { console.error(`browser-read: ${error.message}`); process.exitCode = 1; });

@@ -1,0 +1,54 @@
+{
+  "1600-png-None": {
+    "encode_exit": 0,
+    "encode_seconds": 0.027,
+    "bytes": 54229,
+    "ocr_exit": 0,
+    "exact_lines": 4
+  },
+  "1600-jpeg-80": {
+    "encode_exit": 0,
+    "encode_seconds": 0.029,
+    "bytes": 42535,
+    "ocr_exit": 0,
+    "exact_lines": 4
+  },
+  "1600-jpeg-40": {
+    "encode_exit": 0,
+    "encode_seconds": 0.022,
+    "bytes": 31948,
+    "ocr_exit": 0,
+    "exact_lines": 4
+  },
+  "800-png-None": {
+    "encode_exit": 0,
+    "encode_seconds": 0.02,
+    "bytes": 20358,
+    "ocr_exit": 0,
+    "exact_lines": 3
+  },
+  "800-jpeg-80": {
+    "encode_exit": 0,
+    "encode_seconds": 0.019,
+    "bytes": 14843,
+    "ocr_exit": 0,
+    "exact_lines": 3
+  },
+  "800-jpeg-40": {
+    "encode_exit": 0,
+    "encode_seconds": 0.019,
+    "bytes": 10513,
+    "ocr_exit": 0,
+    "exact_lines": 3
+  },
+  "output_capture": {
+    "exit": 7,
+    "display_bytes": 295,
+    "full_bytes": 720,
+    "full_contains_failure": true,
+    "display_contains_failure": false,
+    "omission_marked": true,
+    "mode": "0o600"
+  },
+  "overwrite_refused": true
+}
