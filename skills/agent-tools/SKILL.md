@@ -7,6 +7,8 @@ description: Use local agent utilities for bounded image, PDF, audio, video, bro
 
 Find `agent-tools` on PATH, or use `bin/agent-tools` from its checkout. Run `agent-tools --help` or `agent-tools COMMAND --help`, and consult the checkout's README for command options and exit codes. Run `agent-tools doctor` to identify available local dependencies.
 
+If the standalone `agent-tools-native` binary is installed, it also provides cross-platform image and PDF commands. Run `agent-tools-native --help`; its OCR commands require Tesseract.
+
 - For screenshots, `image-prepare` creates a smaller copy and `image-batch` prepares many while reporting byte changes; `image-crop` preserves a selected region; `image-diff` reports pixel changes between PNGs; `image-text --regions` returns text locations and confidence, and `image-text --batch` OCRs several images in one process. Check the original or a suitable crop when visual details matter.
 - For PDFs, `pdf-find` searches selectable text by page, `pdf-text --ocr-missing` extracts selected pages and OCRs up to five pages without a text layer, and `pdf-ocr` recognizes selected image-only pages. Respect page limits and incomplete-result flags; neither preserves all visual evidence.
 - For recordings, `media-info` identifies audio and video streams, `video-frame` extracts a moment, and `audio-transcribe` uses an explicitly supplied local Whisper model. Timestamps and recognition are approximate. Do not record, upload, or download models without authorization.

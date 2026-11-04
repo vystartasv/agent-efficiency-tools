@@ -1,6 +1,6 @@
 # Publishing
 
-The `ci.yml` workflow tests the package on macOS and Linux. A `vX.Y.Z` tag that matches `package.json` publishes that version to npm after both test jobs pass.
+The `ci.yml` workflow tests the npm package on macOS and Linux, and tests/builds the native CLI on Windows, Linux, and macOS. A matching `vX.Y.Z` tag publishes the npm package and attaches six native binary archives to a GitHub release after all test jobs pass.
 
 ## One-time npm setup
 
@@ -24,6 +24,10 @@ npm trust github agent-efficiency-tools \
   --repo vystartasv/agent-efficiency-tools \
   --allow-publish
 ```
+
+## Standalone native binaries
+
+Every version tag also builds standalone binaries for Windows, Linux, and macOS. The native build/test job runs on all three operating systems; release archives are attached to the GitHub release. They are separate from the npm package and require Tesseract only for OCR commands. See [native/README.md](native/README.md).
 
 ## Release
 

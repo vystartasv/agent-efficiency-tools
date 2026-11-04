@@ -9,6 +9,8 @@ agent-tools doctor
 
 Requires Node 20+, Python 3 and macOS or Linux. OCR and PDF tools require macOS. Browser reading needs Chromium; media tools need FFmpeg. Audio transcription also needs Whisper and a local model.
 
+Windows, Linux, and macOS users can also download the standalone [Agent Tools Native](https://github.com/vystartasv/agent-efficiency-tools/blob/main/native/README.md) binary from [GitHub Releases](https://github.com/vystartasv/agent-efficiency-tools/releases). It provides image preparation/cropping, image and PDF OCR, and PDF text/search without Node.js or Python. OCR requires local Tesseract.
+
 ```sh
 agent-tools image-text --batch screen-a.png screen-b.png
 agent-tools browser-read https://example.org --main

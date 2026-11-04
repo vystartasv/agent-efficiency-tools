@@ -2,14 +2,15 @@
 
 ## Current tools
 
-The CLI covers image preparation and OCR, PDF text and OCR, browser text, media metadata and transcription, log scanning, command capture, and test reports.
+The npm CLI covers image preparation and OCR, PDF text and OCR, browser text, media metadata and transcription, log scanning, command capture, and test reports. The standalone Go binary adds cross-platform image preparation/cropping, OCR through optional Tesseract, and PDF text/search/OCR.
 
 ## Next
 
 1. Measure complete tasks with and without each tool, including retries and correctness.
 2. Check OCR and document extraction on varied languages, layouts, and small text.
-3. Improve browser extraction and failure recovery using representative pages.
-4. Keep platform requirements, output limits, and incomplete-result flags explicit.
+3. Measure native OCR against varied real screenshots and scanned PDFs before recommending it over Vision.
+4. Improve browser extraction and failure recovery using representative pages.
+5. Keep platform requirements, output limits, and incomplete-result flags explicit.
 
 ## Evidence rule
 
