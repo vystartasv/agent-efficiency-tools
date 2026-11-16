@@ -16,7 +16,9 @@ function runResult(command, args, cwd) {
 
 function run(command, args, cwd) {
   const result = runResult(command, args, cwd);
-  if (result.error || result.status !== 0) throw new Error(`${command} ${args.join(' ')} failed: ${result.stderr || result.error?.message}`);
+  if (result.error || result.status !== 0) {
+    throw new Error(`${command} ${args.join(' ')} failed (${result.status ?? result.error?.message})\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`);
+  }
   return result.stdout;
 }
 
@@ -112,12 +114,11 @@ try {
   const scanned = JSON.parse(scan.stdout);
   assert.equal(scanned.match_count, 1, 'Python command dispatch failed on Windows');
   const capturePath = join(temp, 'captured.log');
-  const python = process.platform === 'win32' ? 'python' : 'python3';
-  const capture = run(process.execPath, [cli, 'output-capture', '--output', capturePath, '--', python, '-c', 'print("Windows command capture")'], temp);
+  const capture = run(process.execPath, [cli, 'output-capture', '--output', capturePath, '--', process.execPath, '-e', 'console.log("Windows command capture")'], temp);
   assert.match(capture, /Windows command capture/);
   assert.match(await readFile(capturePath, 'utf8'), /Windows command capture/);
 
-  const timeout = runResult(process.execPath, [cli, 'output-capture', '--output', join(temp, 'timeout.log'), '--timeout', '0.2', '--', python, '-c', 'import time; time.sleep(5)'], temp);
+  const timeout = runResult(process.execPath, [cli, 'output-capture', '--output', join(temp, 'timeout.log'), '--timeout', '0.2', '--', process.execPath, '-e', 'setTimeout(() => {}, 5000)'], temp);
   assert.equal(timeout.status, 124, `Windows timeout returned ${timeout.status}: ${timeout.stderr}`);
   process.stdout.write('Windows npm package smoke passed: npm install and shim, doctor, native image/PDF commands, Python log scan, output capture, and timeout.\n');
 } finally {
