@@ -114,11 +114,15 @@ try {
   const scanned = JSON.parse(scan.stdout);
   assert.equal(scanned.match_count, 1, 'Python command dispatch failed on Windows');
   const capturePath = join(temp, 'captured.log');
-  const capture = run(process.execPath, [cli, 'output-capture', '--output', capturePath, '--', process.execPath, '-e', 'console.log("Windows command capture")'], temp);
+  const captureScript = join(temp, 'capture-child.mjs');
+  const timeoutScript = join(temp, 'timeout-child.mjs');
+  await writeFile(captureScript, 'console.log("Windows command capture");\n');
+  await writeFile(timeoutScript, 'setTimeout(() => {}, 5000);\n');
+  const capture = run(process.execPath, [cli, 'output-capture', '--output', capturePath, '--', process.execPath, captureScript], temp);
   assert.match(capture, /Windows command capture/);
   assert.match(await readFile(capturePath, 'utf8'), /Windows command capture/);
 
-  const timeout = runResult(process.execPath, [cli, 'output-capture', '--output', join(temp, 'timeout.log'), '--timeout', '0.2', '--', process.execPath, '-e', 'setTimeout(() => {}, 5000)'], temp);
+  const timeout = runResult(process.execPath, [cli, 'output-capture', '--output', join(temp, 'timeout.log'), '--timeout', '0.2', '--', process.execPath, timeoutScript], temp);
   assert.equal(timeout.status, 124, `Windows timeout returned ${timeout.status}: ${timeout.stderr}`);
   process.stdout.write('Windows npm package smoke passed: npm install and shim, doctor, native image/PDF commands, Python log scan, output capture, and timeout.\n');
 } finally {
