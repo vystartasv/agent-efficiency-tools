@@ -1,18 +1,19 @@
 # Agent Efficiency Tools
 
-Local utilities for images, PDFs, web pages, media, logs and test reports.
+Cross-platform local utilities for images, PDFs, web pages, media, logs and test reports.
 
 ```sh
 npm install -g agent-efficiency-tools
 agent-tools doctor
 ```
 
-Requires Node 20+, Python 3 and macOS or Linux. OCR and PDF tools require macOS. Browser reading needs Chromium; media tools need FFmpeg. Audio transcription also needs Whisper and a local model.
+Requires Node.js 20+. Image and PDF commands are bundled for Windows, Linux, and macOS and do not need Go or Python at runtime. Other local commands that wrap Python require Python 3. Browser reading needs Chromium; media tools need FFmpeg; audio transcription also needs Whisper and a local model. OCR requires Tesseract on Windows and Linux; macOS can use Vision.
 
-Windows, Linux, and macOS users can also download the standalone [Agent Tools Native](https://github.com/vystartasv/agent-efficiency-tools/blob/main/native/README.md) binary from [GitHub Releases](https://github.com/vystartasv/agent-efficiency-tools/releases). It provides image preparation/cropping, image and PDF OCR, and PDF text/search without Node.js or Python. OCR requires local Tesseract.
+The npm package bundles platform binaries for image preparation/cropping, image and PDF OCR, and PDF text/search. The standalone [Agent Tools Native](https://github.com/vystartasv/agent-efficiency-tools/blob/main/native/README.md) binary remains available from [GitHub Releases](https://github.com/vystartasv/agent-efficiency-tools/releases) for use without the npm package. OCR requires local Tesseract except on macOS, where Vision is used.
 
 ```sh
-agent-tools image-text --batch screen-a.png screen-b.png
+agent-tools image-text screen.png --json --regions
+agent-tools image-batch prepared/ screen-a.png screen-b.png
 agent-tools browser-read https://example.org --main
 agent-tools log-scan tests.log
 ```

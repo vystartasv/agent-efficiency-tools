@@ -3,6 +3,7 @@
 import argparse
 import json
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -36,14 +37,17 @@ def main():
     existing = [str(path) for path in outputs if path.exists() or path.is_symlink()]
     if existing:
         parser.error("output files already exist: " + ", ".join(existing))
-    tool = Path(__file__).with_name("image-prepare")
+    node = shutil.which("node")
+    if not node:
+        parser.error("Node.js is required for image preparation")
+    tool = Path(__file__).with_name("agent-tools")
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     results = []
     failed = False
     for source, output in zip(sources, outputs):
         before = source.stat().st_size
-        command = [str(tool), str(source), str(output), str(args.max_dimension)]
+        command = [node, str(tool), "image-prepare", str(source), str(output), str(args.max_dimension)]
         if args.quality is not None:
             command.append(str(args.quality))
         run = subprocess.run(command, capture_output=True, text=True)

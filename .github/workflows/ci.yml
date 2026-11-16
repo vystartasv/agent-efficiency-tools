@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   native-test:
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -32,6 +33,7 @@ jobs:
         run: go build -trimpath -o agent-tools-native .
 
   test:
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/v')
     strategy:
       fail-fast: false
       matrix:
@@ -46,6 +48,10 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: '22'
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
       - name: Install package dependencies
         run: npm ci
       - name: Check package contents
@@ -73,11 +79,29 @@ jobs:
       - name: Run tests
         run: python3 -m unittest discover -s tests -v
 
+  windows-package:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
+      - name: Install the packed npm package and exercise Windows native commands
+        run: node tests/test-windows-package.mjs
+
   publish:
     if: >-
       startsWith(github.ref, 'refs/tags/v') &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: [test, native-test]
+    needs: [test, native-test, windows-package]
     runs-on: ubuntu-24.04
     environment: production
     permissions:
@@ -92,6 +116,10 @@ jobs:
           node-version: '24'
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: native/go.mod
+          cache-dependency-path: native/go.sum
       - name: Check tag matches package version
         run: node -e 'const p=require("./package.json"); if (process.env.GITHUB_REF_NAME !== `v${p.version}`) throw new Error(`tag ${process.env.GITHUB_REF_NAME} does not match package version ${p.version}`)'
       - name: Publish to npm with OIDC
@@ -101,7 +129,7 @@ jobs:
     if: >-
       startsWith(github.ref, 'refs/tags/v') &&
       (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: [test, native-test]
+    needs: [test, native-test, windows-package]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

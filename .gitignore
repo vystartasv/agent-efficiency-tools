@@ -4,3 +4,4 @@ node_modules/
 /native/agent-tools-native
 /native/agent-tools-native.exe
 /native/dist/
+/bin/native/

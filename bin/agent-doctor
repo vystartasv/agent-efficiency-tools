@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 
-names = ('sips', 'swift', 'node', 'python3', 'rg', 'jq', 'ffmpeg', 'ffprobe', 'whisper', 'rtk')
+names = ('sips', 'swift', 'node', 'python3', 'python', 'py', 'rg', 'jq', 'ffmpeg', 'ffprobe', 'whisper', 'rtk')
 commands = {name: shutil.which(name) for name in names}
 playwright = None
 chromium = None
@@ -32,5 +32,9 @@ console.log(JSON.stringify(result));
         image_diff_dependencies = probe['imageDiffDependencies']
     except (OSError, subprocess.TimeoutExpired, subprocess.CalledProcessError, ValueError, KeyError):
         pass
+native_os = {'Darwin': 'darwin', 'Linux': 'linux', 'Windows': 'windows'}.get(platform.system())
+native_arch = {'x86_64': 'amd64', 'AMD64': 'amd64', 'aarch64': 'arm64', 'arm64': 'arm64'}.get(platform.machine())
+native_binary = Path(__file__).parent / 'native' / f'{native_os}-{native_arch}' / ('agent-tools-native.exe' if native_os == 'windows' else 'agent-tools-native') if native_os and native_arch else None
 print(json.dumps({'platform': platform.system(), 'commands': commands, 'playwright_available': playwright,
-                  'chromium_executable_present': chromium, 'image_diff_dependencies_available': image_diff_dependencies}, indent=2))
+                  'chromium_executable_present': chromium, 'image_diff_dependencies_available': image_diff_dependencies,
+                  'native_binary_available': native_binary.is_file() if native_binary else False}, indent=2))

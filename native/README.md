@@ -1,6 +1,6 @@
 # Agent Tools Native
 
-`agent-tools-native` is a standalone Go binary for image and PDF inspection on Windows, Linux, and macOS. It does not need Node.js or Python.
+`agent-tools-native` is a Go binary for image and PDF inspection on Windows, Linux, and macOS. The npm package bundles a copy for each supported OS and CPU and routes supported `agent-tools` commands to it. It does not need Node.js or Python when used standalone.
 
 Download the archive for your OS and CPU from [GitHub Releases](https://github.com/vystartasv/agent-efficiency-tools/releases). Compare its digest with the matching entry in `SHA256SUMS` using `shasum -a 256 ARCHIVE` or PowerShell's `Get-FileHash ARCHIVE -Algorithm SHA256`, then extract the binary and run:
 

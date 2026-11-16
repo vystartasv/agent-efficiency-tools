@@ -13,7 +13,7 @@ class PackageTest(unittest.TestCase):
     def test_packed_install_and_command(self):
         with tempfile.TemporaryDirectory() as d:
             directory = Path(d)
-            pack = subprocess.run(['npm', 'pack', '--ignore-scripts', '--json', '--pack-destination', d],
+            pack = subprocess.run(['npm', 'pack', '--json', '--pack-destination', d],
                                   cwd=ROOT, capture_output=True, text=True)
             self.assertEqual(pack.returncode, 0, pack.stderr)
             archive = directory / json.loads(pack.stdout)[0]['filename']
@@ -24,6 +24,11 @@ class PackageTest(unittest.TestCase):
                 self.assertIn('package/bin/agent-tools', names)
                 self.assertIn('package/bin/image-batch', names)
                 self.assertIn('package/bin/log-scan', names)
+                self.assertIn('package/bin/native/windows-amd64/agent-tools-native.exe', names)
+                self.assertIn('package/bin/native/windows-arm64/agent-tools-native.exe', names)
+                self.assertIn('package/native/licenses/GIRAFFESYO-PDF.txt', names)
+                manifest = json.load(tar.extractfile('package/package.json'))
+                self.assertNotIn('os', manifest)
                 self.assertFalse(any('__pycache__' in name or name.endswith('.pyc') for name in names))
             prefix = directory / 'installation'
             install = subprocess.run(['npm', 'install', '--prefix', str(prefix), '--ignore-scripts',

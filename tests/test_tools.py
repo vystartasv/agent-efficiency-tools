@@ -19,6 +19,7 @@ IMAGE = ROOT / 'bin/image-prepare'
 BROWSER = ROOT / 'bin/browser-read'
 DOCTOR = ROOT / 'bin/agent-doctor'
 CLI = ROOT / 'bin/agent-tools'
+NODE = subprocess.check_output([shutil.which('node'), '-p', 'process.execPath'], text=True).strip()
 
 class ToolsTest(unittest.TestCase):
     def test_doctor_reports_capabilities(self):
@@ -28,6 +29,7 @@ class ToolsTest(unittest.TestCase):
         self.assertIn(report['playwright_available'], (True, False, None))
         self.assertIn(report['chromium_executable_present'], (True, False, None))
         self.assertIn(report['image_diff_dependencies_available'], (True, False, None))
+        self.assertTrue(report['native_binary_available'])
 
     def test_dispatcher(self):
         result = subprocess.run([str(CLI), 'doctor'], capture_output=True, text=True, check=True)
@@ -48,24 +50,25 @@ class ToolsTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             env = os.environ.copy()
             env['PATH'] = d
-            result = subprocess.run([str(CLI), '--help'], env=env, capture_output=True, text=True)
+            result = subprocess.run([NODE, str(CLI), 'doctor'], env=env, capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn('python3', result.stderr)
+            self.assertIn('Python 3 is required', result.stderr)
 
     def test_subcommand_help_without_optional_backends(self):
         commands = ['doctor', 'image-prepare', 'image-batch', 'image-crop', 'image-diff', 'image-text',
                     'media-info', 'video-frame', 'audio-transcribe', 'pdf-text', 'pdf-find',
                     'pdf-ocr', 'output-capture', 'log-scan', 'test-report', 'browser-read']
         with tempfile.TemporaryDirectory() as d:
+            (Path(d)/'node').symlink_to(NODE)
             (Path(d)/'python3').symlink_to(shutil.which('python3'))
             env = os.environ.copy()
             env['PATH'] = d
             for command in commands:
                 with self.subTest(command=command):
-                    result = subprocess.run([str(CLI), command, '--help'], env=env, capture_output=True, text=True)
+                    result = subprocess.run([NODE, str(CLI), command, '--help'], env=env, capture_output=True, text=True)
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn(f'Usage: agent-tools {command}', result.stdout)
-            self.assertEqual(subprocess.run([str(CLI), 'unknown', '--help'], env=env, capture_output=True).returncode, 2)
+            self.assertEqual(subprocess.run([NODE, str(CLI), 'unknown', '--help'], env=env, capture_output=True).returncode, 2)
 
     def test_log_scan_bounded_context_and_recoverable_source(self):
         with tempfile.TemporaryDirectory() as d:

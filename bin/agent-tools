@@ -1,51 +1,121 @@
-#!/bin/sh
-set -eu
-root=$(python3 -c 'import os, sys; print(os.path.dirname(os.path.realpath(sys.argv[1])))' "$0")
-if [ "$#" -eq 0 ] || [ "$1" = help ] || [ "$1" = --help ]; then
-  printf '%s\n' 'Usage: agent-tools COMMAND [ARGS...]' '' 'Commands:' '  doctor         Inspect local dependencies' '  image-prepare  Resize or compress an image' '  image-batch    Prepare several images and report byte savings' '  image-crop     Extract a pixel region to PNG' '  image-diff     Compare pixels in two PNG images' '  image-text     Extract text with macOS Vision' '  media-info     Inspect audio and video metadata' '  video-frame    Extract one video frame to PNG' '  audio-transcribe Transcribe audio with a local Whisper model' '  pdf-text       Extract text from selected PDF pages' '  pdf-find       Find text in PDF pages' '  pdf-ocr        Recognize text on selected PDF pages' '  output-capture Save full command output and show a bounded tail' '  log-scan       Extract matching log lines with bounded context' '  test-report    Extract JUnit XML failure details' '  browser-read   Read rendered page text in an isolated browser'
-  exit 0
-fi
-command=$1
-shift
-if [ "$#" -eq 1 ] && [ "$1" = --help ]; then
-  case "$command" in
-    doctor) usage='doctor — report local dependencies as JSON' ;;
-    image-prepare) usage='image-prepare INPUT OUTPUT [MAX_DIMENSION] [JPEG_QUALITY] — create a resized or compressed copy' ;;
-    image-batch) usage='image-batch OUTPUT_DIR [--max-dimension N] [--format png|jpeg] [--quality N] IMAGE... — prepare multiple copies and report byte savings' ;;
-    image-crop) usage='image-crop INPUT OUTPUT.png X Y WIDTH HEIGHT — crop using top-left pixel coordinates' ;;
-    image-diff) usage='image-diff LEFT.png RIGHT.png [THRESHOLD] — compare PNG pixels; requires pngjs and pixelmatch' ;;
-    image-text) usage='image-text [--batch] IMAGE... [--json] [--regions] [--max-chars N] — recognize image text with macOS Vision' ;;
-    media-info) usage='media-info INPUT — inspect local media metadata using FFprobe' ;;
-    video-frame) usage='video-frame INPUT OUTPUT.png SECONDS — extract a video frame using FFmpeg' ;;
-    audio-transcribe) usage='audio-transcribe INPUT MODEL.pt [--language CODE] [--start S --end S] — transcribe using local Whisper' ;;
-    pdf-text) usage='pdf-text INPUT.pdf [FIRST_PAGE [LAST_PAGE]] [--ocr-missing] — extract PDF text and optionally OCR image-only pages' ;;
-    pdf-find) usage='pdf-find INPUT.pdf SEARCH_TEXT — find selectable PDF text by page' ;;
-    pdf-ocr) usage='pdf-ocr INPUT.pdf [FIRST_PAGE [LAST_PAGE]] — recognize PDF pages with macOS Vision' ;;
-    output-capture) usage='output-capture --output FILE [--tail-bytes N] [--timeout SECONDS] -- COMMAND ... — save complete output and show a tail' ;;
-    log-scan) usage='log-scan INPUT [--pattern REGEX] [--context N] [--max-matches N] [--max-line-chars N] — extract bounded diagnostic lines' ;;
-    test-report) usage='test-report REPORT.xml — extract JUnit failure details' ;;
-    browser-read) usage='browser-read URL [MAX_CHARACTERS] [--main] [--wait-for SELECTOR] [--timeout-ms MS] — read rendered text in isolated Chromium' ;;
-    *) printf 'Unknown command: %s\n' "$command" >&2; exit 2 ;;
-  esac
-  printf 'Usage: agent-tools %s\nSee the checkout README for exit codes and limitations.\n' "$usage"
-  exit 0
-fi
-case "$command" in
-  doctor) exec "$root/agent-doctor" "$@" ;;
-  image-prepare) exec "$root/image-prepare" "$@" ;;
-  image-batch) exec python3 "$root/image-batch" "$@" ;;
-  image-crop) exec "$root/image-crop.swift" "$@" ;;
-  image-diff) exec "$root/image-diff" "$@" ;;
-  image-text) exec "$root/image-text.swift" "$@" ;;
-  media-info) exec "$root/media-info" "$@" ;;
-  video-frame) exec "$root/video-frame" "$@" ;;
-  audio-transcribe) exec "$root/audio-transcribe" "$@" ;;
-  pdf-text) exec "$root/pdf-text.swift" "$@" ;;
-  pdf-find) exec "$root/pdf-find.swift" "$@" ;;
-  pdf-ocr) exec "$root/pdf-ocr.swift" "$@" ;;
-  output-capture) exec "$root/output-capture" "$@" ;;
-  log-scan) exec python3 "$root/log-scan" "$@" ;;
-  test-report) exec "$root/test-report" "$@" ;;
-  browser-read) exec "$root/browser-read" "$@" ;;
-  *) printf 'Unknown command: %s\n' "$command" >&2; exit 2 ;;
-esac
+#!/usr/bin/env node
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { delimiter, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = dirname(realpathSync(fileURLToPath(import.meta.url)));
+const packageVersion = JSON.parse(readFileSync(join(root, '..', 'package.json'), 'utf8')).version;
+const [command, ...args] = process.argv.slice(2);
+const usage = `Usage: agent-tools COMMAND [ARGS...]
+
+Commands:
+  doctor           Inspect local dependencies
+  image-prepare    Resize or convert an image
+  image-batch      Prepare several images and report byte savings
+  image-crop       Crop a pixel region to PNG
+  image-diff       Compare pixels in two PNG images
+  image-text       Extract image text
+  media-info       Inspect audio and video metadata
+  video-frame      Extract one video frame to PNG
+  audio-transcribe Transcribe audio with a local Whisper model
+  pdf-text         Extract text from selected PDF pages
+  pdf-find         Find text in PDF pages
+  pdf-ocr          Recognize text on PDF pages
+  output-capture   Save full command output and show a bounded tail
+  log-scan         Extract matching log lines with bounded context
+  test-report      Extract JUnit XML failure details
+  browser-read     Read rendered page text in an isolated browser
+
+Run agent-tools COMMAND --help for command usage.
+`;
+
+const pythonCommands = new Set(['doctor', 'image-batch', 'media-info', 'video-frame', 'audio-transcribe', 'output-capture', 'log-scan', 'test-report']);
+const nativeCommands = new Set(['image-prepare', 'image-crop', 'image-text', 'pdf-text', 'pdf-find', 'pdf-ocr']);
+const nodeCommands = new Set(['image-diff', 'browser-read']);
+const commandHelp = {
+  doctor: 'doctor — report local dependencies as JSON',
+  'image-prepare': 'image-prepare INPUT OUTPUT [MAX_DIMENSION] [JPEG_QUALITY] — create a resized or compressed copy',
+  'image-batch': 'image-batch OUTPUT_DIR [--max-dimension N] [--format png|jpeg] [--quality N] IMAGE... — prepare several images',
+  'image-crop': 'image-crop INPUT OUTPUT.png X Y WIDTH HEIGHT — crop using top-left pixel coordinates',
+  'image-diff': 'image-diff LEFT.png RIGHT.png [THRESHOLD] — compare PNG pixels',
+  'image-text': 'image-text IMAGE [--json] [--regions] [--max-chars N] — recognize image text',
+  'media-info': 'media-info INPUT — inspect local media metadata using FFprobe',
+  'video-frame': 'video-frame INPUT OUTPUT.png SECONDS — extract a video frame using FFmpeg',
+  'audio-transcribe': 'audio-transcribe INPUT MODEL.pt [--language CODE] [--start S --end S] — transcribe using local Whisper',
+  'pdf-text': 'pdf-text INPUT.pdf [FIRST_PAGE [LAST_PAGE]] [--ocr-missing] — extract PDF text',
+  'pdf-find': 'pdf-find INPUT.pdf SEARCH_TEXT — find selectable PDF text by page',
+  'pdf-ocr': 'pdf-ocr INPUT.pdf [FIRST_PAGE [LAST_PAGE]] — recognize PDF pages',
+  'output-capture': 'output-capture --output FILE [--tail-bytes N] [--timeout SECONDS] -- COMMAND ... — save full output',
+  'log-scan': 'log-scan INPUT [--pattern REGEX] [--context N] [--max-matches N] [--max-line-chars N] — scan a log',
+  'test-report': 'test-report REPORT.xml — extract JUnit failure details',
+  'browser-read': 'browser-read URL [MAX_CHARACTERS] [--main] [--wait-for SELECTOR] [--timeout-ms MS] — read rendered text',
+};
+const goArch = ({ x64: 'amd64', arm64: 'arm64' })[process.arch];
+const goOS = ({ win32: 'windows', darwin: 'darwin', linux: 'linux' })[process.platform];
+const nativePath = goArch && goOS
+  ? join(root, 'native', `${goOS}-${goArch}`, `agent-tools-native${process.platform === 'win32' ? '.exe' : ''}`)
+  : undefined;
+
+function findPython() {
+  const candidates = process.platform === 'win32' ? [['python'], ['python3'], ['py', ['-3']]] : [['python3'], ['python']];
+  const extensions = process.platform === 'win32' ? ['.EXE', '.COM'] : [''];
+  for (const [name, prefix = []] of candidates) {
+    for (const directory of (process.env.PATH ?? '').split(delimiter)) {
+      if (!directory) continue;
+      for (const extension of extensions) {
+        const executable = join(directory, `${name}${extension}`);
+        if (existsSync(executable)) return { executable, prefix };
+      }
+    }
+  }
+}
+
+function run(executable, arguments_) {
+  const child = spawn(executable, arguments_, { stdio: 'inherit', windowsHide: true });
+  child.once('error', (error) => {
+    process.stderr.write(`agent-tools: could not start ${executable}: ${error.message}\n`);
+    process.exitCode = 127;
+  });
+  child.once('exit', (code, signal) => {
+    if (signal && process.platform !== 'win32') process.kill(process.pid, signal);
+    else process.exitCode = code ?? 1;
+  });
+}
+
+if (!command || command === 'help' || command === '--help' || command === '-h') {
+  process.stdout.write(usage);
+} else if (command === '--version') {
+  process.stdout.write(`agent-efficiency-tools ${packageVersion}\n`);
+} else if (args.length === 1 && args[0] === '--help' && commandHelp[command]) {
+  process.stdout.write(`Usage: agent-tools ${commandHelp[command]}\nSee the README for exit codes and limitations.\n`);
+} else if (nativeCommands.has(command) && process.platform !== 'darwin') {
+  if (!nativePath || !existsSync(nativePath)) {
+    process.stderr.write('agent-tools: packaged native command is unavailable for this operating system or CPU; reinstall the package or run its native build.\n');
+    process.exitCode = 127;
+  } else {
+    run(nativePath, [command, ...args]);
+  }
+} else if (pythonCommands.has(command)) {
+  const python = findPython();
+  if (!python) {
+    process.stderr.write('agent-tools: Python 3 is required for this command (checked python3, python, and py -3).\n');
+    process.exitCode = 127;
+  } else {
+    run(python.executable, [...python.prefix, join(root, command === 'image-batch' ? command : command === 'doctor' ? 'agent-doctor' : command), ...args]);
+  }
+} else if (nodeCommands.has(command)) {
+  run(process.execPath, [join(root, command), ...args]);
+} else if (process.platform === 'darwin' && nativeCommands.has(command)) {
+  const script = command === 'image-prepare' ? 'image-prepare'
+    : command === 'image-crop' ? 'image-crop.swift'
+      : command === 'image-text' ? 'image-text.swift'
+        : `${command}.swift`;
+  run(join(root, script), args);
+} else if (command === 'image-batch' || command === 'doctor' || command === 'log-scan') {
+  process.stderr.write(`agent-tools: Python 3 is required for ${command}.\n`);
+  process.exitCode = 127;
+} else {
+  process.stderr.write(`Unknown command: ${command}\nRun agent-tools --help to list commands.\n`);
+  process.exitCode = 2;
+}

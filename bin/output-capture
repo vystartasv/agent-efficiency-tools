@@ -24,7 +24,8 @@ try:
     with os.fdopen(fd, 'wb') as output:
         try:
             process = subprocess.Popen(command, stdout=output, stderr=subprocess.STDOUT,
-                                       start_new_session=args.timeout is not None)
+                                       start_new_session=args.timeout is not None and os.name != 'nt',
+                                       creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if args.timeout is not None and os.name == 'nt' else 0)
         except OSError as exc:
             output.write(f'output-capture: could not start command: {exc}\n'.encode(errors='replace'))
             exit_code = 127 if exc.errno == errno.ENOENT else 126
@@ -33,19 +34,25 @@ try:
                 return_code = process.wait(timeout=args.timeout)
                 exit_code = 128 + -return_code if return_code < 0 else return_code
             except subprocess.TimeoutExpired:
-                try:
-                    os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    pass
+                if os.name == 'nt':
+                    process.kill()
+                else:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
                 process.wait()
                 output.write(f'\noutput-capture: timed out after {args.timeout:g} seconds\n'.encode())
                 exit_code = 124
             except KeyboardInterrupt:
                 if args.timeout is not None and process.poll() is None:
-                    try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
+                    if os.name == 'nt':
+                        process.kill()
+                    else:
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
                     process.wait()
                 raise
     size = os.path.getsize(args.output)
